@@ -48,8 +48,8 @@ class GameCheckReporter(BaseReporter):
 
                     rows.append(f'--> answer: {answer}')
                     rows.append(f'guesses: {games[answer]["guesses"]}')
-                    rows.append(f'scores: {games[answer]["scores"]}')
-                    rows.append(f'score: {self.best_score} ({total})')
-                rows.append(f'generation: {self.best_generation} ({self.current_generation})')
+                    rows.append(f'scores: {games[answer]["scores"]} ({sum(games[answer]["scores"])})')
+                rows.append(f'-score: {self.best_score} ({total})')
+                rows.append(f'-generation: {self.best_generation} ({self.current_generation})')
                 f.writelines('\n'.join(rows))
                 f.write('\n-----------------------------\n')

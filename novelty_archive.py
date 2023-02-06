@@ -56,7 +56,7 @@ class NoveltyArchive:
         ]
 
         distances.sort()
-        nitem.novelty = (sum(distances[:KNN]) / KNN)**2
+        nitem.novelty = (sum(distances[:KNN]) / KNN) / len(nitem.data)#**2
         self._add_novelty_item(nitem)
         return nitem.novelty
 
@@ -79,23 +79,26 @@ if __name__ == "__main__":
     c = NoveltyItem(2, 3, data=['hoped', 'hogan', 'suite', 'arett', 'avion', 'tares'])
     d = NoveltyItem(2, 4, data=['hoped', 'hogan', 'suite', 'arett', 'asdfg', 'tares'])
     e = NoveltyItem(2, 5, data=['asdf', 'fdsa'])
+    f = NoveltyItem(3, 6, data=['asdf', 'fdsa', 'qwerty', 'ytrewq', 'zxcvbn', 'nbvcxz', 'edxc', 'qwert', 'poiun'])
     items = [a, b, c, d, e]
     print(a)
     print(b)
     print(c)
     print(d)
     print(e)
+    print(f)
 
     # def metric_test(first, second):
     #     return 8675309
 
     print('---')
     arch = NoveltyArchive(max_novelty_size=2)
-    print(f'a: {arch.evaluate_novelty_score(a, items)}')
-    print(f'b: {arch.evaluate_novelty_score(b, items)}')
-    print(f'c: {arch.evaluate_novelty_score(c, items)}')
-    print(f'd: {arch.evaluate_novelty_score(d, items)}')
-    print(f'e: {arch.evaluate_novelty_score(e, items)}')
+    print(f'a: {arch.evaluate_novelty_score(a, items)}') # 0.09
+    print(f'b: {arch.evaluate_novelty_score(b, items)}') # 0.09
+    print(f'c: {arch.evaluate_novelty_score(c, items)}') # 0.12
+    print(f'd: {arch.evaluate_novelty_score(d, items)}') # 0.15
+    print(f'e: {arch.evaluate_novelty_score(e, items)}') # 0.4
+    print(f'f: {arch.evaluate_novelty_score(f, items)}') # 0.4
 
     print('---')
     for x in arch.novel_items:

@@ -1,26 +1,32 @@
 import neat
 import os
+import pickle
 import utils
 from dojo import Dojo
 import novelty_archive as archive
 import reporters
 from wordle import Wordle
 
-LOAD = False
+LOAD = True
 INITIAL_WORD_COUNT = 1
-CHECKPOINT = 10
+CHECKPOINT = 200
 THREADS = 1
 GAME_CHECK = 10
-ADD_NEW_WORD = 125
-config = neat.Config(
-    neat.DefaultGenome,
-    neat.DefaultReproduction,
-    neat.DefaultSpeciesSet,
-    neat.DefaultStagnation,
-    utils.config_file)
-config.genome_config.add_activation(
-    'leaky_relu6', utils.leaky_relu6
-)
+ADD_NEW_WORD = 200
+
+if LOAD:
+    with open('out/config.pkl', 'rb') as f:
+        config = pickle.load(f)
+else:
+    config = neat.Config(
+        neat.DefaultGenome,
+        neat.DefaultReproduction,
+        neat.DefaultSpeciesSet,
+        neat.DefaultStagnation,
+        utils.config_file)
+    config.genome_config.add_activation(
+        'leaky_relu6', utils.leaky_relu6
+    )
 
 novel_archive = archive.NoveltyArchive()
 wordle = Wordle()
@@ -88,6 +94,7 @@ def eval_genomes(genomes, config):
         net = neat.nn.RecurrentNetwork.create(genome, config)
         # net = neat.nn.FeedForwardNetwork.create(genome, config)
         fitness, data = get_fitness(net)
+        # genome.fitness = fitness
         fitness_map[genome_id] = fitness
         n_item = archive.NoveltyItem(
             generation=generation,

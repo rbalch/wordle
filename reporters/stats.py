@@ -22,7 +22,7 @@ class StatsReporter(BaseReporter):
         if best_genome.fitness > self.best_score:
             self.best_score = best_genome.fitness
             self._save_best_genome(best_genome)
-        self._save_config(config)
+            self._save_config(config)
         self.best_scores.append(best_genome.fitness)
         self.average_scores.append(
             sum([g.fitness for g in population.values()]) / len(population.values())

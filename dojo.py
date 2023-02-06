@@ -105,3 +105,32 @@ class Dojo:
         self.record(guess, score)
         info = {'score': score}
         return self.observation, reward, self.done, info
+
+
+if __name__ == '__main__':
+    dojo = Dojo()
+
+    answers = ['tares']
+    # guesses = ['daddy', 'filly', 'waurs', 'hecks', 'geoid', 'geyer'] # 1.8
+    # guesses = ['tares'] # 16.11
+    guesses = ['terms', 'tares'] # 15.0
+    # guesses = ['terms', 'terfs', 'tares'] # 13.9
+    # guesses = ['terms', 'terms', 'tares'] # 5.8
+    # guesses = ['terms', 'terfs', 'teres', 'terek', 'antae', 'teras'] # 5.3
+    # guesses = ['terms', 'terfs', 'teres', 'terek', 'antae', 'tares'] # 9.0
+    # guesses = ['terms', 'antae', 'teres', 'terek', 'tares'] # 8.8
+    # guesses = ['terms', 'teres']
+
+    # guesses = ['weils', 'wekas', 'tapes', 'tapus', 'tanty', 'tares']
+    # guesses = ['thelf', 'thine', 'toles', 'tolus', 'tolan', 'tomes']
+
+    for answer in answers:
+        score = 0.0
+        dojo.reset(answer)
+        print(f'answer: {answer}')
+        for action in guesses:
+            obs, reward, done, _ = dojo.step(action)
+            score += reward
+            print(f'--> guess: {action} ({reward})')
+            if done: break
+        print(f'----> score: {score}')
