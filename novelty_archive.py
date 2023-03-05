@@ -56,7 +56,7 @@ class NoveltyArchive:
         ]
 
         distances.sort()
-        nitem.novelty = (sum(distances[:KNN]) / KNN) / len(nitem.data)#**2
+        nitem.novelty = ((sum(distances[:KNN]) / KNN)**2) / len(nitem.data)
         self._add_novelty_item(nitem)
         return nitem.novelty
 

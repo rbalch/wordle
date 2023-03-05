@@ -8,9 +8,11 @@ out_dir = os.path.join(local_dir, 'out')
 
 class NeuralNet(nn.Module):
 
-    def __init__(self, key, input_size, hidden_sizes, output_size):
+    def __init__(self, key, input_size, hidden_sizes, output_size, activation='tanh'):
         super(NeuralNet, self).__init__()
         self.key = key
+        self.activation = getattr(torch, activation, None) # tanh sigmoid relu
+        assert self.activation is not None, f'Invalid activation function: {activation}'
         self.hidden_layers = nn.ModuleList()
         # create the hidden layers
         for hidden_size in hidden_sizes:
@@ -22,15 +24,14 @@ class NeuralNet(nn.Module):
     def __str__(self):
         return f'NeuralNet(key={self.key}, layers={[input_size] + hidden_sizes + [output_size]})'
     
-    def forward(self, observation, store_gradients=False):
+    def forward(self, observation, store_gradients=False, activate_output=False):
+        # TODO: can't decide if i want to use activation on the output layer or not
 
         def run(x):
             # pass the input through each hidden layer with an activation
             for hidden_layer in self.hidden_layers:
-                # x = nn.functional.relu(hidden_layer(x))
-                x = torch.sigmoid(hidden_layer(x))
-            # pass the output of the last hidden layer through the output layer
-            return self.output_layer(x)
+                x = self.activation(hidden_layer(x))
+            return self.activation(self.output_layer(x)) if activate_output else self.output_layer(x)
         
         if store_gradients:
             return run(observation)
@@ -69,16 +70,14 @@ if __name__ == "__main__":
     g = NeuralNet(0, input_size, hidden_sizes, output_size)
     print(g)
     x = torch.rand(1, input_size)
-    # x = torch.tensor([[0.8363, 0.9331, 0.0352, 0.8731, 0.4941, 0.2834, 0.0368, 0.4096, 0.2125, 0.2755]])
     # print(x)
-    print(g.forward(x))
+    y = g.forward(x)
+    print(y)
+    # print(torch.tanh(y))
 
-    for _ in range(100):
-        g.train(x, torch.tensor([[0.1, 0.2, 0.3, 0.4, 0.5]]))
-        print(g.forward(x))
-
-    # g.save(filename=os.path.join(out_dir, 'test.pt'))
-
+    # for _ in range(100):
+    #     g.train(x, torch.tensor([[0.1, 0.2, 0.3, 0.4, 0.5]]))
+    #     print(g.forward(x))
 
     # print('------------------')
     # for _ in g.parameters():

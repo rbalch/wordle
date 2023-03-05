@@ -48,4 +48,5 @@ class Player:
         return [int(x) for x in result]
 
 
-Player()()
+if __name__ == '__main__':
+    Player()()
