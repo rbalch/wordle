@@ -1,6 +1,7 @@
 import os
 import torch
 import torch.nn as nn
+from copy import deepcopy
 
 local_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 out_dir = os.path.join(local_dir, 'out')
@@ -8,72 +9,69 @@ out_dir = os.path.join(local_dir, 'out')
 
 class NeuralNet(nn.Module):
 
-    def __init__(self, key, input_size, hidden_sizes, output_size, activation='tanh', layers=None):
+    def __init__(self, key, input_size, hidden_sizes, output_size, activation=None, net=None):
         super(NeuralNet, self).__init__()
         self.key = key
         self.input_size = input_size
         self.hidden_sizes = hidden_sizes
         self.output_size = output_size
         # tanh sigmoid relu
-        self.activation = getattr(torch, activation, None) if isinstance(activation, str) else activation
+        self.activation = activation or nn.LeakyReLU()
         assert self.activation is not None, f'Invalid activation function: {activation}'
-        
-        self.hidden_layers = nn.ModuleList()
-        if layers is None:
-            # create the hidden layers
-            for hidden_size in hidden_sizes:
-                self.hidden_layers.append(nn.Linear(input_size, hidden_size))
-                input_size = hidden_size
-            # create the output layer
-            self.output_layer = nn.Linear(input_size, output_size)
-        else:
-            for layer in layers[:-1]:
-                self.hidden_layers.append(layer)
-            self.output_layer = layers[-1]
+
+        self.net = net
+        if self.net is None:
+            layers = [nn.Linear(input_size, hidden_sizes[0]), self.activation]
+            for i in range(len(hidden_sizes) - 1):
+                layers.append(nn.Linear(hidden_sizes[i], hidden_sizes[i + 1]))
+                layers.append(self.activation)
+            layers.append(nn.Linear(hidden_sizes[-1], output_size))
+            self.net = nn.Sequential(*layers)
 
     def __str__(self):
         return f'NeuralNet(key={self.key}, layers={[self.input_size] + self.hidden_sizes + [self.output_size]})'
     
     def clone(self, key=None):
-
-        def _clone(layer):
-            new_layer = nn.Linear(layer.in_features, layer.out_features)
-            new_layer.weight = nn.Parameter(layer.weight.detach().clone())
-            new_layer.bias = nn.Parameter(layer.bias.detach().clone())
-            return new_layer
-
-        layers = [_clone(x) for x in self.hidden_layers]
-        layers.append(_clone(self.output_layer))
         return NeuralNet(
             key or self.key,
             self.input_size,
             self.hidden_sizes,
             self.output_size,
             self.activation,
-            layers=layers
+            net=deepcopy(self.net)
         )
     
     def forward(self, observation, store_gradients=False, activate_output=False):
-        # TODO: can't decide if i want to use activation on the output layer or not
-
-        def run(x):
-            # pass the input through each hidden layer with an activation
-            for hidden_layer in self.hidden_layers:
-                x = self.activation(hidden_layer(x))
-            return self.activation(self.output_layer(x)) if activate_output else self.output_layer(x)
-        
+        """Run the neural net forward on the observation.
+        :param observation: the input to run the neural net on
+        :param store_gradients: whether to store the gradients for backpropagation
+        :param activate_output: whether to apply the activation function to the output
+            boolean for running default
+            string to specify activation function
+            activation function to use
+        :return: the output of the neural net"""        
         if store_gradients:
-            return run(observation)
+            return self.net(observation)
         else:
             # if we aren't doing any backpropagation, we don't need to keep track of the intermediate values
             with torch.no_grad():
-                return run(observation)
+                return self.net(observation)
             
-    def train(self, observation, target, lr=0.01):
+    def train(self, observation, target, lr=None, loss_function=None):
+        """Train the neural net on the observation and target.
+        :param observation: the input to run the neural net on
+        :param target: the target output of the neural net
+        :param lr: the learning rate
+        :param loss_function: the loss function to use
+            - if None, use the default loss function (MSE)
+            - nn.CrossEntropyLoss(), nn.BCELoss(), nn.NLLLoss(), etc.
+        """
         # define loss function
-        loss_function = nn.MSELoss()
-        # create optimizer; stochastic gradient descent; lr = learning rate
-        optimizer = torch.optim.SGD(self.parameters(), lr=lr)
+        loss_function = loss_function or nn.MSELoss()
+        # # create optimizer; stochastic gradient descent; lr = learning rate
+        # optimizer = torch.optim.SGD(self.parameters(), lr=lr or 0.01)
+        # create optimizer; Adam
+        optimizer = torch.optim.Adam(self.parameters(), lr=lr or 1e-3)
         # run with gradients and get loss
         prediction = self.forward(observation, store_gradients=True)
         loss = loss_function(prediction, target)
@@ -102,10 +100,11 @@ if __name__ == "__main__":
     print(g1)
     print(g2)
     print('------------------')
-    # print(g1.output_layer.bias)
     print(g1.forward(obs))
-    # print('------------------')
-    # print(g2.output_layer.bias)
+    print(g2.forward(obs))
+    print('------------------')
+    g1.train(obs, torch.tensor([[0.1, 0.2, 0.3, 0.4, 0.5]]))
+    print(g1.forward(obs))
     print(g2.forward(obs))
 
     # for _ in range(100):
