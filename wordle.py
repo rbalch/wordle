@@ -16,7 +16,10 @@ class Wordle:
 
     def add_new_answer(self, word=None, num=None):
         num = num or 1
-        if word:
+        if isinstance(word, list):
+            for w in word:
+                self.add_new_answer(w)
+        elif word:
             print(f'--> adding: {word}')
             self.answers.append(word)
         elif num:
@@ -31,6 +34,11 @@ class Wordle:
                 print(f'--> adding: {new_word}')
 
     def get_word(self, output):
+        if isinstance(output, str):
+            return WORDS[output]
         return WORDS[
             ''.join([str(int(x > 0)) for x in output])
         ]
+    
+    def get_key(self, word):
+        return list(WORDS.keys())[list(WORDS.values()).index(word)]
