@@ -1,5 +1,6 @@
 import os, shutil
-from utils.wordle_dict import all_words, words
+from .neural_net import NeuralNet
+from .wordle_dict import all_words, words
 
 master_dict = all_words + words
 local_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

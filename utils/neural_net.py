@@ -15,8 +15,8 @@ class NeuralNet(nn.Module):
         self.input_size = input_size
         self.hidden_sizes = hidden_sizes
         self.output_size = output_size
-        # tanh sigmoid relu
-        self.activation = activation or nn.LeakyReLU()
+        self.fitness = None
+        self.activation = self._get_activation_function(activation)
         assert self.activation is not None, f'Invalid activation function: {activation}'
 
         self.net = net
@@ -31,6 +31,20 @@ class NeuralNet(nn.Module):
     def __str__(self):
         return f'NeuralNet(key={self.key}, layers={[self.input_size] + self.hidden_sizes + [self.output_size]})'
     
+    def _get_activation_function(self, name):
+        if name is None:
+            return nn.Tanh()
+        if isinstance(name, str):
+            if name == 'tanh':
+                return nn.Tanh()
+            if name == 'sigmoid':
+                return nn.Sigmoid()
+            if name == 'leaky_relu':
+                return nn.LeakyReLU()
+        if isinstance(name, nn.Module):
+            return name
+        raise ValueError(f'Invalid activation function: {name}')
+
     def clone(self, key=None):
         return NeuralNet(
             key or self.key,
@@ -49,7 +63,9 @@ class NeuralNet(nn.Module):
             boolean for running default
             string to specify activation function
             activation function to use
-        :return: the output of the neural net"""        
+        :return: the output of the neural net"""  
+        if isinstance(observation, list):
+            observation = torch.tensor(observation)
         if store_gradients:
             return self.net(observation)
         else:
@@ -66,6 +82,8 @@ class NeuralNet(nn.Module):
             - if None, use the default loss function (MSE)
             - nn.CrossEntropyLoss(), nn.BCELoss(), nn.NLLLoss(), etc.
         """
+        # if isinstance(observation, list):
+        #     observation = torch.tensor(observation)
         # define loss function
         loss_function = loss_function or nn.MSELoss()
         # # create optimizer; stochastic gradient descent; lr = learning rate
@@ -96,16 +114,16 @@ if __name__ == "__main__":
     
     obs = torch.rand(1, input_size)
     g1 = NeuralNet('g1', input_size, hidden_sizes, output_size)
-    g2 = g1.clone(key='g2')
+    # g2 = g1.clone(key='g2')
     print(g1)
-    print(g2)
-    print('------------------')
+    # print(g2)
+    # print('------------------')
     print(g1.forward(obs))
-    print(g2.forward(obs))
-    print('------------------')
-    g1.train(obs, torch.tensor([[0.1, 0.2, 0.3, 0.4, 0.5]]))
-    print(g1.forward(obs))
-    print(g2.forward(obs))
+    # print(g2.forward(obs))
+    # print('------------------')
+    # g1.train(obs, torch.tensor([[0.1, 0.2, 0.3, 0.4, 0.5]]))
+    # print(g1.forward(obs))
+    # print(g2.forward(obs))
 
     # for _ in range(100):
     #     g.train(x, torch.tensor([[0.1, 0.2, 0.3, 0.4, 0.5]]))
