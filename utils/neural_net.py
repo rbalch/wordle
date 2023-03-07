@@ -33,7 +33,7 @@ class NeuralNet(nn.Module):
     
     def _get_activation_function(self, name):
         if name is None:
-            return nn.Tanh()
+            return nn.LeakyReLU()
         if isinstance(name, str):
             if name == 'tanh':
                 return nn.Tanh()

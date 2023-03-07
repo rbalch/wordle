@@ -24,6 +24,36 @@ class NeuralNetMating:
         self._beta = beta
         self.population = population or []
 
+    def add_layer(self, net, position=None, new_size=None, activation=None):
+        """
+        updates the model in place; also returns it
+        :param net: the neural net to add a layer to
+        :param position: the position to add the layer at; or random
+        :param new_size: the size of the new layer; or random
+        :param activation: the activation function to use; or the net default
+        :return: the neural net with the new layer added"""
+        position = random.randint(0, len(net.hidden_sizes)) if position is None else position
+        avg_size = sum(net.hidden_sizes) // len(net.hidden_sizes)
+        if new_size is None:
+            new_size = random.randint(
+                avg_size // 2,
+                avg_size * 2
+            )
+            new_size = 1 if new_size < 1 else new_size
+        activation = activation or net.activation
+
+        net.hidden_sizes.insert(position, new_size)
+        layers = list(net.net)
+        position = 2*(position+1)
+        in_size = net.net[position-2].out_features
+        out_size = net.net[position].in_features
+        layers.insert(position, activation)
+        layers.insert(position, torch.nn.Linear(new_size, out_size))
+        layers.insert(position, activation)
+        layers.insert(position, torch.nn.Linear(in_size, new_size))
+        net.net = torch.nn.Sequential(*layers)
+        return net
+
     @property
     def beta(self):
         if self._beta is None:
@@ -44,37 +74,60 @@ class NeuralNetMating:
         child2 = p2.clone()
         with torch.no_grad():
             for i, p1_layer in enumerate(p1.net.children()):
-                p2_layer = p2.net[i]
-                # check both parents have valid weights and biases
-                p1_valid_layer = all([
-                    getattr(p1_layer, 'weight', None) is not None,
-                    getattr(p1_layer, 'bias', None) is not None,
-                ])
-                p2_valid_layer = all([
-                    getattr(p2_layer, 'weight', None) is not None,
-                    getattr(p2_layer, 'bias', None) is not None,
-                ])
-                if p1_valid_layer and p2_valid_layer:
-                    # bias
-                    x = max(p1_layer, p2_layer, key=lambda l: l.bias.size(0))
-                    y = p1_layer if x is p2_layer else p2_layer
-                    for j, bias1 in enumerate(x.bias):
-                        try:
-                            child1.net[i].bias[j], child2.net[i].bias[j] = \
-                                self.simulated_binary_crossover(bias1, y.bias[j])
-                        except IndexError:
-                            break
-                    # weight
-                    # x = max(p1_layer, p2_layer, key=lambda l: l.weight.size(0))
-                    # y = p1_layer if x is p2_layer else p2_layer
-                    for j, weight1 in enumerate(x.weight):
-                        try:
-                            for k, value in enumerate(weight1):
-                                child1.net[i].weight[j][k], child2.net[i].weight[j][k] = \
-                                    self.simulated_binary_crossover(value, y.weight[j][k])
-                        except IndexError:
-                            break
+                try:
+                    p2_layer = p2.net[i]
+                    # check both parents have valid weights and biases
+                    p1_valid_layer = all([
+                        getattr(p1_layer, 'weight', None) is not None,
+                        getattr(p1_layer, 'bias', None) is not None,
+                    ])
+                    p2_valid_layer = all([
+                        getattr(p2_layer, 'weight', None) is not None,
+                        getattr(p2_layer, 'bias', None) is not None,
+                    ])
+                    if p1_valid_layer and p2_valid_layer:
+                        # bias
+                        x = max(p1_layer, p2_layer, key=lambda l: l.bias.size(0))
+                        y = p1_layer if x is p2_layer else p2_layer
+                        for j, bias1 in enumerate(x.bias):
+                            try:
+                                child1.net[i].bias[j], child2.net[i].bias[j] = \
+                                    self.simulated_binary_crossover(bias1, y.bias[j])
+                            except IndexError:
+                                break
+                        # weight
+                        for j, weight1 in enumerate(x.weight):
+                            try:
+                                for k, value in enumerate(weight1):
+                                    child1.net[i].weight[j][k], child2.net[i].weight[j][k] = \
+                                        self.simulated_binary_crossover(value, y.weight[j][k])
+                            except IndexError:
+                                break
+                except IndexError:
+                    break
             return [child1, child2]
+        
+    def delete_layer(self, net, position=None):
+        """
+        TODO: this reshapes the previous layer to match the next layer
+        updates the model in place; also returns it
+        :param net: the neural net to delete a layer from
+        :param position: the position to delete the layer at; or random
+        :return: the neural net with the layer deleted"""
+        position = random.randint(0, len(net.hidden_sizes)-1) if position is None else position
+        net.hidden_sizes.pop(position)
+        layers = list(net.net)
+        position = 2*(position+1)
+        layers.pop(position)
+        layers.pop(position)
+        # reshape the layers
+        out_shape = layers[position].in_features
+        in_shape = layers[position-2].out_features
+        if in_shape != out_shape:
+            old_layer = layers.pop(position-2)
+            layers.insert(position-2, torch.nn.Linear(old_layer.in_features, out_shape))
+        net.net = torch.nn.Sequential(*layers)
+        return net
     
     def mate(self, parent1, parent2):
         """
@@ -118,38 +171,49 @@ class NeuralNetMating:
 if __name__ == '__main__':
     from neural_net import NeuralNet
 
-    mating = NeuralNetMating(crossover_rate=1.0)
-    nets = [
-        NeuralNet(key=_, input_size=2, hidden_sizes=[3], output_size=2)
-        for _ in range(2)
-    ]
+    # # test mating
+    # mating = NeuralNetMating(crossover_rate=1.0)
+    # nets = [
+    #     NeuralNet(key=_, input_size=2, hidden_sizes=[3], output_size=2)
+    #     for _ in range(2)
+    # ]
 
-    with torch.no_grad():
-        for i, net in enumerate(nets):
-            for j, bias in enumerate(net.net[0].bias):
-                nets[i].net[0].bias[j] = float(i) + 1.0
-            for k, weight in enumerate(net.net[0].weight):
-                for l, value in enumerate(weight):
-                    nets[i].net[0].weight[k][l] = float(i) + 1.0
+    # with torch.no_grad():
+    #     for i, net in enumerate(nets):
+    #         for j, bias in enumerate(net.net[0].bias):
+    #             nets[i].net[0].bias[j] = float(i) + 1.0
+    #         for k, weight in enumerate(net.net[0].weight):
+    #             for l, value in enumerate(weight):
+    #                 nets[i].net[0].weight[k][l] = float(i) + 1.0
 
-    print('parents:')
-    for net in nets:
-        print(f'--> {net}')
-        print(f'----> {net.net[0].bias}')
-        print(f'----> {net.net[0].weight}')
+    # print('parents:')
+    # for net in nets:
+    #     print(f'--> {net}')
+    #     print(f'----> {net.net[0].bias}')
+    #     print(f'----> {net.net[0].weight}')
 
-    print('------------------')
-    children = mating.crossover(*nets)
+    # print('------------------')
+    # children = mating.crossover(*nets)
 
-    print('children:')
-    for net in children:
-        print(f'--> {net}')
-        print(f'----> {net.net[0].bias}')
-        print(f'----> {net.net[0].weight}')
+    # print('children:')
+    # for net in children:
+    #     print(f'--> {net}')
+    #     print(f'----> {net.net[0].bias}')
+    #     print(f'----> {net.net[0].weight}')
+    # # /test mating
 
-    # children = mating.mate(nets[0], nets[1])
-    # for child in children:
-    #     print('------------------')
-    #     for layer in child.hidden_layers:
-    #         print(f'layer.weight: {layer.weight}')
-    #         print(f'layer.bias: {layer.bias}')
+    # # test delete layer
+    # mating = NeuralNetMating()
+    # net = NeuralNet(key=0, input_size=2, hidden_sizes=[3,4,5], output_size=2)
+    # obs = torch.rand(1, net.input_size)
+    # print(net)
+    # print(net.net)
+    # print('------------------')
+
+    # mating.delete_layer(net, position=0)
+    # print(net)
+    # print(net.net)
+
+    # print('------------------')
+    # print(net.forward(obs))
+    # # /test delete layer
