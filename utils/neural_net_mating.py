@@ -142,10 +142,12 @@ class NeuralNetMating:
             children = [parent1, parent2]
         return [self.mutate(child) for child in children]
 
-    def mutate(self, net, max_drift=.2):
-        # if random.random() < self.mutation_rate:
-        #     return self.mutate_individual(net)
-        return net
+    @classmethod
+    def mutate_value(value, max_drift=.1):
+        return random.uniform(
+            value - (value * max_drift), 
+            value + (value * max_drift)
+        )
     
     def simulated_binary_crossover(self, v1, v2, beta=None):
         """

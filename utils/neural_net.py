@@ -9,13 +9,19 @@ out_dir = os.path.join(local_dir, 'out')
 
 class NeuralNet(nn.Module):
 
-    def __init__(self, key, input_size, hidden_sizes, output_size, activation=None, net=None):
+    def __init__(self, key, input_size, hidden_sizes, output_size,
+                    activation=None,
+                    net=None,
+                    optimizer=None,
+                    loss_function=None):
         super(NeuralNet, self).__init__()
         self.key = key
         self.input_size = input_size
         self.hidden_sizes = hidden_sizes
         self.output_size = output_size
         self.fitness = None
+        self._optimizer = optimizer
+        self._loss_function = loss_function
         self.activation = self._get_activation_function(activation)
         assert self.activation is not None, f'Invalid activation function: {activation}'
 
@@ -72,31 +78,56 @@ class NeuralNet(nn.Module):
             # if we aren't doing any backpropagation, we don't need to keep track of the intermediate values
             with torch.no_grad():
                 return self.net(observation)
+
+    @property
+    def loss_function(self):
+        if not self._loss_function:
+            self._loss_function = nn.MSELoss()
+        return self._loss_function
+
+    @property
+    def optimizer(self):
+        if not self._optimizer:
+            # torch.optim.SGD(self.parameters(), lr=lr or 0.01)
+            self._optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
+        return self._optimizer
             
-    def train(self, observation, target, lr=None, loss_function=None):
+    def train(self, observation, target, loss_function=None):
         """Train the neural net on the observation and target.
         :param observation: the input to run the neural net on
         :param target: the target output of the neural net
-        :param lr: the learning rate
+        # :param lr: the learning rate
         :param loss_function: the loss function to use
             - if None, use the default loss function (MSE)
             - nn.CrossEntropyLoss(), nn.BCELoss(), nn.NLLLoss(), etc.
         """
         # if isinstance(observation, list):
         #     observation = torch.tensor(observation)
-        # define loss function
-        loss_function = loss_function or nn.MSELoss()
-        # # create optimizer; stochastic gradient descent; lr = learning rate
-        # optimizer = torch.optim.SGD(self.parameters(), lr=lr or 0.01)
-        # create optimizer; Adam
-        optimizer = torch.optim.Adam(self.parameters(), lr=lr or 1e-3)
-        # run with gradients and get loss
+        loss_function = loss_function or self.loss_function
         prediction = self.forward(observation, store_gradients=True)
         loss = loss_function(prediction, target)
         # zero gradients, perform a backward pass, and update the weights
-        optimizer.zero_grad()
+        self.optimizer.zero_grad()
         loss.backward()
-        optimizer.step()
+        self.optimizer.step()
+        return loss
+
+    def train_gan(self, discriminator, observation, target, output=None):
+        """Train the neural net on the observation and target.
+        :param discriminator: the discriminator neural net
+        :param observation: the input to run the neural net on
+        :param target: the target output of the neural net
+        :param output: the output of the neural net
+        """
+        if output is None:
+            output = self.forward(observation, store_gradients=True)
+        d_output = discriminator.forward(output, store_gradients=True)
+        loss = discriminator.loss_function(d_output, target)
+        # zero gradients, perform a backward pass, and update the weights
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+        return loss
 
     def load(self, filename=None):
         filename = filename or os.path.join(out_dir, 'best_genome.pt')
