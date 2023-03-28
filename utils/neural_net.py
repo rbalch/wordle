@@ -1,6 +1,9 @@
 import os
+import importlib
+import pickle
 import torch
 import torch.nn as nn
+import uuid
 from copy import deepcopy
 
 local_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -13,16 +16,19 @@ class NeuralNet(nn.Module):
                     activation=None,
                     net=None,
                     optimizer=None,
-                    loss_function=None):
+                    loss_function=None,
+                    save_losses=True,
+                    lr=1e-3):
         super(NeuralNet, self).__init__()
         self.key = key
         self.input_size = input_size
         self.hidden_sizes = hidden_sizes
         self.output_size = output_size
-        self.fitness = None
         self._optimizer = optimizer
         self._loss_function = loss_function
         self.activation = self._get_activation_function(activation)
+        self.losses = [] if save_losses else None
+        self.lr = lr
         assert self.activation is not None, f'Invalid activation function: {activation}'
 
         self.net = net
@@ -32,11 +38,12 @@ class NeuralNet(nn.Module):
                 layers.append(nn.Linear(hidden_sizes[i], hidden_sizes[i + 1]))
                 layers.append(self.activation)
             layers.append(nn.Linear(hidden_sizes[-1], output_size))
+            # layers.append(nn.Sigmoid())
             self.net = nn.Sequential(*layers)
 
     def __str__(self):
         return f'NeuralNet(key={self.key}, layers={[self.input_size] + self.hidden_sizes + [self.output_size]})'
-    
+
     def _get_activation_function(self, name):
         if name is None:
             return nn.LeakyReLU()
@@ -80,16 +87,27 @@ class NeuralNet(nn.Module):
                 return self.net(observation)
 
     @property
+    def key(self):
+        if self._key is None:
+            self._key = uuid.uuid4().hex
+        return self._key
+
+    @key.setter
+    def key(self, value):
+        self._key = uuid.uuid4().hex if value is None else value
+
+    @property
     def loss_function(self):
         if not self._loss_function:
             self._loss_function = nn.MSELoss()
+            # self._loss_function = nn.BCELoss()
         return self._loss_function
 
     @property
     def optimizer(self):
         if not self._optimizer:
             # torch.optim.SGD(self.parameters(), lr=lr or 0.01)
-            self._optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
+            self._optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
         return self._optimizer
             
     def train(self, observation, target, loss_function=None):
@@ -110,6 +128,8 @@ class NeuralNet(nn.Module):
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
+        if isinstance(self.losses, list):
+            self.losses.append(loss.item())
         return loss
 
     def train_gan(self, discriminator, observation, target, output=None):
@@ -127,15 +147,32 @@ class NeuralNet(nn.Module):
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
+        if isinstance(self.losses, list):
+            self.losses.append(loss.item())
         return loss
 
-    def load(self, filename=None):
-        filename = filename or os.path.join(out_dir, 'best_genome.pt')
-        self.load_state_dict(torch.load(filename))
+    @staticmethod
+    def load(filename=None, device=None):
+        filename = filename or os.path.join(out_dir, 'best_genome')
+        # from out.evolution_best_meta import input_size, hidden_sizes, output_size
+        meta = importlib.import_module(f'out.{filename}_meta')
+        net = NeuralNet(filename, meta.input_size, meta.hidden_sizes, meta.output_size)
+        net.load_state_dict(torch.load(f'{filename}.pt', map_location=device))
+        if os.path.exists(os.path.join(out_dir, f'{filename}_losses.py')):
+            with open(os.path.join(out_dir, f'{filename}_losses.py'), 'rb') as f:
+                net.losses = pickle.load(f)
+        return net
 
     def save(self, filename=None):
-        filename = filename or os.path.join(out_dir, 'best_genome.pt')
-        torch.save(self.state_dict(), filename)
+        filename = filename or os.path.join(out_dir, 'best_genome')
+        torch.save(self.state_dict(), f'{filename}.pt')
+        with open(os.path.join(out_dir, f'{filename}_meta.py'), 'w') as f:
+            f.write(f'input_size = {self.input_size}\n')
+            f.write(f'hidden_sizes = {self.hidden_sizes}\n')
+            f.write(f'output_size = {self.output_size}\n')
+        if self.losses:
+            with open(os.path.join(out_dir, f'{filename}_losses.py'), 'wb') as f:
+                pickle.dump(self.losses, f)
 
 
 if __name__ == "__main__":

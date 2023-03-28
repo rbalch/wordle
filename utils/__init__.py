@@ -1,4 +1,5 @@
 import os, shutil
+from .neural_net_mating import NeuralNetMating
 from .neural_net import NeuralNet
 from .wordle_dict import all_words, words
 

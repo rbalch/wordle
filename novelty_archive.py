@@ -39,7 +39,11 @@ class NoveltyArchive:
         return len(self.novel_items)
 
     def __str__(self):
-        return f'NoveltyArchive: {len(self)} items'
+        return f'NoveltyArchive: {len(self)} of ({self.max_novelty_size})'
+
+    @staticmethod
+    def create_item(genomeId, data):
+        return NoveltyItem(genomeId=genomeId, data=data)
 
     def evaluate_novelty_score(self, nitem, nitems) -> float:
         # check against current population
@@ -55,8 +59,9 @@ class NoveltyArchive:
             if x.genomeId != nitem.genomeId
         ]
 
-        distances.sort()
-        nitem.novelty = ((sum(distances[:KNN]) / KNN)**2) / len(nitem.data)
+        # distances.sort()
+        # nitem.novelty = ((sum(distances[:KNN]) / KNN)**2) / len(nitem.data)
+        nitem.novelty = sum(distances) / (len(distances) or 1) / len(nitem.data)
         self._add_novelty_item(nitem)
         return nitem.novelty
 

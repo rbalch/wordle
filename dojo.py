@@ -4,8 +4,12 @@ LETTERS = 'abcdefghijklmnopqrstuvwxyz'
 
 class Dojo:
 
-    def __init__(self):
+    def __init__(self, obs_float=False):
+        self.obs_float = obs_float
         self.reset()
+
+    def __str__(self):
+        return f'answer: {self.answer} | guesses: {self.guesses}'
 
     def calcReward(self, guess, score):
         if (self.answer is not None and guess == self.answer) or score == [3, 3, 3, 3, 3] :
@@ -70,6 +74,8 @@ class Dojo:
                         output.append(0)
         output += [0 for _ in range((26*5*5) - len(output))]
         output.append(self.remainingMoves)
+        if self.obs_float:
+            return [float(x) for x in output]
         return output
 
     def record(self, guess, score):
@@ -110,27 +116,33 @@ class Dojo:
 if __name__ == '__main__':
     dojo = Dojo()
 
-    answers = ['tares']
-    # guesses = ['daddy', 'filly', 'waurs', 'hecks', 'geoid', 'geyer'] # 1.8
-    # guesses = ['tares'] # 16.11
-    guesses = ['terms', 'tares'] # 15.0
-    # guesses = ['terms', 'terfs', 'tares'] # 13.9
-    # guesses = ['terms', 'terms', 'tares'] # 5.8
-    # guesses = ['terms', 'terfs', 'teres', 'terek', 'antae', 'teras'] # 5.3
-    # guesses = ['terms', 'terfs', 'teres', 'terek', 'antae', 'tares'] # 9.0
-    # guesses = ['terms', 'antae', 'teres', 'terek', 'tares'] # 8.8
-    # guesses = ['terms', 'teres']
+    # answers = ['tares']
+    # # guesses = ['daddy', 'filly', 'waurs', 'hecks', 'geoid', 'geyer'] # 1.8
+    # # guesses = ['tares'] # 16.11
+    # guesses = ['terms', 'tares'] # 15.0
+    # # guesses = ['terms', 'terfs', 'tares'] # 13.9
+    # # guesses = ['terms', 'terms', 'tares'] # 5.8
+    # # guesses = ['terms', 'terfs', 'teres', 'terek', 'antae', 'teras'] # 5.3
+    # # guesses = ['terms', 'terfs', 'teres', 'terek', 'antae', 'tares'] # 9.0
+    # # guesses = ['terms', 'antae', 'teres', 'terek', 'tares'] # 8.8
+    # # guesses = ['terms', 'teres']
 
-    # guesses = ['weils', 'wekas', 'tapes', 'tapus', 'tanty', 'tares']
-    # guesses = ['thelf', 'thine', 'toles', 'tolus', 'tolan', 'tomes']
+    # # guesses = ['weils', 'wekas', 'tapes', 'tapus', 'tanty', 'tares']
+    # # guesses = ['thelf', 'thine', 'toles', 'tolus', 'tolan', 'tomes']
 
-    for answer in answers:
-        score = 0.0
-        dojo.reset(answer)
-        print(f'answer: {answer}')
-        for action in guesses:
-            obs, reward, done, _ = dojo.step(action)
-            score += reward
-            print(f'--> guess: {action} ({reward})')
-            if done: break
-        print(f'----> score: {score}')
+    # for answer in answers:
+    #     score = 0.0
+    #     dojo.reset(answer)
+    #     print(f'answer: {answer}')
+    #     for action in guesses:
+    #         obs, reward, done, _ = dojo.step(action)
+    #         score += reward
+    #         print(f'--> guess: {action} ({reward})')
+    #         if done: break
+    #     print(f'----> score: {score}')
+    dojo.record('aaaaa', '11111')
+    # dojo.record('bbbbb', '22222')
+    # dojo.record('ccccc', '33333')
+    # dojo.record('ddddd', '44444')
+    # dojo.record('zzzzz', '55555')
+    print(dojo.observation)
