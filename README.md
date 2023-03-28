@@ -7,9 +7,7 @@ This is a simple project to demonstrate the use of neuroevolution to create a bo
 I've been using [Anaconda](https://www.anaconda.com/) to manage my python environments. I've included a `environment.yml` file that can be used to create a conda environment with all the required dependencies. To create the environment run the following command:
 
 ```bash
-conda create -n wordle python=3.8
-conda activate wordle
-pip install -r requirements.txt
+conda env create -f environment.yml
 ```
 
 # scripts
